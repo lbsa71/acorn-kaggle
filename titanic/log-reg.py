@@ -19,14 +19,23 @@ np.random.seed(15324)
 
 # print(np.mean(data['y']))
 
+def ageCategorizer(age):
+    return 'child' if age < 16 else ('senior' if age > 65 else 'adult')
+
+def categorizeAge(dataSet, column, new_column):
+    dataSet[new_column] = dataSet[column].map(ageCategorizer)
+    return dataSet
+
 def normalizeColumn(dataSet, column):
-    dataSet[column] = dataSet[column] / np.max(dataSet['age_processed'])
+    dataSet[column] = dataSet[column] / np.max(dataSet[column])
     return dataSet
 
 def getProcessedData(dataSet):
     normalizeColumn(dataSet, 'age_processed')
+    categorizeAge(dataSet, 'Age', 'age_category')
     dataSet['class_category'] = dataSet['Pclass'].astype('category')
-    return pd.get_dummies(dataSet.loc[:, ['age_processed', 'class_category', 'Sex']]).astype('float32')
+    dataSet['has_Parch'] = dataSet['Parch'].map(lambda e: e > 0).astype('category')
+    return pd.get_dummies(dataSet.loc[:, ['age_category', 'class_category', 'has_Parch', 'Sex']]).astype('float32')
 
 def castObjectToCategory(data):
     for i in range(len(data.columns)):
@@ -38,11 +47,11 @@ data = pd.read_csv('./data/train.csv')
 
 data = data.dropna(subset=['Pclass', 'Age', 'Sex']).reset_index()
 
-females = data[data['Sex'] == 'female'].reset_index()
-allMales = data[data['Sex'] == 'male'].reset_index()
-males = allMales.truncate(after=len(females))
-data = females.append(males, ignore_index = True)
-data = data.sample(frac = 1).reset_index(drop = True)
+# females = data[data['Sex'] == 'female'].reset_index()
+# allMales = data[data['Sex'] == 'male'].reset_index()
+# males = allMales.truncate(after=len(females))
+# data = females.append(males, ignore_index = True)
+# data = data.sample(frac = 1).reset_index(drop = True)
 print(data.head())
 print('Items: ' + str(len(data)))
 

@@ -8,14 +8,23 @@ import tensorflow as tf
 
 np.random.seed(15324)
 
+def ageCategorizer(age):
+    return 'child' if age < 16 else ('senior' if age > 65 else 'adult')
+
+def categorizeAge(dataSet, column, new_column):
+    dataSet[new_column] = dataSet[column].map(ageCategorizer)
+    return dataSet
+
 def normalizeColumn(dataSet, column):
-    dataSet[column] = dataSet[column] / np.max(dataSet['age_processed'])
+    dataSet[column] = dataSet[column] / np.max(dataSet[column])
     return dataSet
 
 def getProcessedData(dataSet):
     normalizeColumn(dataSet, 'age_processed')
+    categorizeAge(dataSet, 'Age', 'age_category')
     dataSet['class_category'] = dataSet['Pclass'].astype('category')
-    return pd.get_dummies(dataSet.loc[:, ['age_processed', 'class_category', 'Sex', 'Parch', 'SibSp', 'Embarked']]).astype('float32')
+    dataSet['has_Parch'] = dataSet['Parch'].map(lambda e: e > 0).astype('category')
+    return pd.get_dummies(dataSet.loc[:, ['age_category', 'class_category', 'has_Parch', 'Sex']]).astype('float32')
 
 def castObjectToCategory(data):
     for i in range(len(data.columns)):
@@ -103,6 +112,22 @@ y_test = np.transpose(y_test)[0]
 print(test_labels[0:15])
 print(y_test[0:15].astype('int32'))
 print(np.mean(np.abs(test_labels - y_test)))
+
+# Predict unknown Kaggle data
+verification_set = pd.read_csv('./data/test.csv')
+verification_set['age_processed'] = verification_set['Age'].map(lambda e: 30 if np.isnan(e) else e)
+vs_processed = getProcessedData(verification_set)
+x_vs = vs_processed.as_matrix().astype('float32')
+
+input_prediction_fn = tf.estimator.inputs.numpy_input_fn({'x': x_vs},
+    batch_size=1, num_epochs=1, shuffle=False)
+
+predictionMetrics = np.argmax(list(estimator.predict(input_fn = input_prediction_fn)), 1)
+
+verification_set['Survived'] = predictionMetrics
+
+verification_set.to_csv('./data/kaggle.csv', columns=['PassengerId', 'Survived'], index=False)
+quit()
 
 # train_metrics = estimator.evaluate(input_fn = input_train_fn)
 # print('Eval metrics: %r'%train_metrics)
